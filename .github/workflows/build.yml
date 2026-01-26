@@ -1,0 +1,51 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Buildozer dependencies
+      run: |
+        sudo dpkg --add-architecture i386
+        sudo apt update
+        sudo apt install -y python3-pip autoconf automake m4 libtool libtool-bin build-essential pkg-config git zip unzip openjdk-8-jdk expect ant ccache libncurses5:i386 libstdc++6:i386 zlib1g:i386 libbz2-1.0:i386 libexpat1:i386 libz1:i386 libreadline-dev:i386 libncursesw5:i386 libssl-dev:i386 libgdbm-dev:i386 libffi-dev:i386 wget make
+        export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
+        echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+
+    - name: Install Cython
+      run: |
+        pip3 install cython
+
+    - name: Install Buildozer
+      run: |
+        pip3 install buildozer
+
+    - name: Initialize Buildozer
+      run: |
+        cd calculator_app
+        buildozer init
+
+    - name: Build Android APK
+      run: |
+        cd calculator_app
+        buildozer android debug
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: apk-file
+        path: calculator_app/bin/*.apk
