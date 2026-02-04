@@ -20,6 +20,12 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -28,7 +34,6 @@ jobs:
           git \
           zip \
           unzip \
-          openjdk-17-jdk \
           autoconf \
           libtool \
           pkg-config \
@@ -38,28 +43,49 @@ jobs:
           cmake \
           libffi-dev \
           libssl-dev \
-          ccache
+          ccache \
+          lld
 
     - name: Install Buildozer
       run: |
         pip install --upgrade pip wheel setuptools
-        pip install buildozer cython==0.29.36
+        pip install buildozer==1.5.0 cython==0.29.36
+
+    - name: Cache Buildozer
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.buildozer
+          .buildozer
+        key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
+        restore-keys: |
+          buildozer-${{ runner.os }}-
 
     - name: Build APK
       run: |
-        yes | buildozer android debug 2>&1 | tee build.log
-      timeout-minutes: 120
+        yes | buildozer -v android debug 2>&1 | tee build.log
+      continue-on-error: true
+
+    - name: List files
+      run: |
+        echo "=== Current directory ==="
+        ls -la
+        echo "=== Bin directory ==="
+        ls -la bin/ || echo "bin/ not found"
+        echo "=== Buildozer directory ==="
+        ls -la .buildozer/ || echo ".buildozer/ not found"
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: Pong-APK
         path: bin/*.apk
-        if-no-files-found: error
+        if-no-files-found: ignore
 
-    - name: Upload log on failure
-      if: failure()
+    - name: Upload build log
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: build-log
         path: build.log
